@@ -8,27 +8,6 @@ def parse_grid():
         grid.append(row)
     return grid
 
-def find_empty_near_special(grid, num):
-    """Finds an empty space near a special space (star or heart), prioritizing grouping with same numbers."""
-    best_score = -1
-    best_move = None
-    for y in range(height):
-        for x in range(width):
-            if grid[y][x] == 1 or grid[y][x] > 1: # Check for empty or special space
-                score = 0
-                # Check nearby spaces for same numbers or special spaces to increase score
-                for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < width and 0 <= ny < height:
-                        if grid[ny][nx] == num:
-                            score += 1
-                        elif grid[ny][nx] > 1: # Star or heart space
-                            score += 2
-                if score > best_score:
-                    best_score = score
-                    best_move = (x, y)
-    return best_move
-
 def update_grid(grid, num, x, y):
     """Updates the grid state by placing the number and its mirror correctly."""
     # Place the number
@@ -36,6 +15,38 @@ def update_grid(grid, num, x, y):
     # Calculate and place the mirrored number
     mirror_x = width - x - 1
     grid[y][mirror_x] = -1  # Mark the mirrored tile as filled
+
+def update_grid_for_evaluation(grid, num, x, y):
+    """Updates the grid for evaluation purposes by placing the number and its mirror without permanently modifying the grid."""
+    new_grid = [row[:] for row in grid]  # Make a deep copy of the grid
+    mirror_x = width - x - 1
+    # Mark the selected and mirrored positions as filled for this hypothetical move
+    new_grid[y][x] = num
+    new_grid[y][mirror_x] = num
+    return new_grid
+
+def score_move(grid, num, x, y):
+    """Scores a move based on its strategic value."""
+    score = 0
+    # Apply the move hypothetically
+    temp_grid = update_grid_for_evaluation(grid, num, x, y)
+
+    # Scoring for group formation potential
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Check orthogonal directions
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < width and 0 <= ny < height:
+            if temp_grid[ny][nx] == num:
+                score += 10  # Increase score for each adjacent matching number
+    
+    # Special tile considerations
+    if grid[y][x] == 2 or grid[y][width - x - 1] == 2:  # Star tile
+        score += 20
+    if grid[y][x] == 3 or grid[y][width - x - 1] == 3:  # Heart tile
+        score += 15
+
+    # Future flexibility could be evaluated here as well (more complex and left as an exercise)
+
+    return score
 
 def is_valid_placement(grid, x, y):
     """Checks if the placement is valid (empty and not previously filled)."""
@@ -45,13 +56,26 @@ def is_valid_placement(grid, x, y):
         return grid[y][mirror_x] > 0
     return False
 
-def find_valid_placement(grid, num):
-    """Finds a valid placement for the number considering current grid state."""
+def find_best_move(grid, num1, num2):
+    """Finds the best move for the current dice roll by evaluating all valid placements."""
+    best_score = -1
+    best_move = None
     for y in range(height):
-        for x in range(int(width / 2)):  # Only need to iterate over half due to mirroring
+        for x in range(int(width / 2)):  # Consider half due to mirroring
             if is_valid_placement(grid, x, y):
-                return x, y
-    return None  # No valid placement found
+                # Evaluate move for num1
+                score1 = score_move(grid, num1, x, y)
+                # Evaluate move for num2, as if num2 was placed at x, y and mirrored
+                score2 = score_move(grid, num2, x, y)
+                
+                # Choose the move with the higher score
+                if score1 > best_score:
+                    best_score = score1
+                    best_move = (num1, x, y)
+                if score2 > best_score:
+                    best_score = score2
+                    best_move = (num2, x, y)
+    return best_move
 
 def main():
     global width, height, rounds
@@ -61,12 +85,11 @@ def main():
     try:
         for _ in range(rounds):
             num1, num2 = map(int, input().split())
-
-            move = find_valid_placement(grid, num1)
+            move = find_best_move(grid, num1, num2)
             if move:
-                x, y = move
-                print(f"{num1} {x} {y}")
-                update_grid(grid, num1, x, y)
+                num, x, y = move
+                print(f"{num} {x} {y}")
+                update_grid(grid, num, x, y)
             else:
                 print("# No valid move found, passing.")
     except EOFError:
