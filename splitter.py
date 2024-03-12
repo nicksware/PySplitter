@@ -18,8 +18,23 @@ class Splitter:
         return True
 
     def calculate_score(self):
-        # Implement score calculation logic here
-        pass
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.board[y][x] != 0:
+                    self.score += self.calculate_connected_score(x, y, self.board[y][x])
+
+    def calculate_connected_score(self, x, y, number):
+        directions = [(1, 0), (0, 1)]
+        score = 0
+        for dx, dy in directions:
+            count = 1
+            nx, ny = x + dx, y + dy
+            while 0 <= nx < self.width and 0 <= ny < self.height and self.board[ny][nx] == number:
+                count += 1
+                nx, ny = nx + dx, ny + dy
+            if count >= number:
+                score += number
+        return score
 
     def play_game(self):
         for _ in range(self.rounds):
