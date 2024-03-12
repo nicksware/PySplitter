@@ -15,7 +15,16 @@ class Splitter:
         if self.board[y][x] != 0:
             return False
         self.board[y][x] = number
-        return True
+        # Check for adjacent numbers of the same value
+        for dx, dy in [(1, 0), (0, 1)]:
+            count = 1
+            nx, ny = x + dx, y + dy
+            while 0 <= nx < self.width and 0 <= ny < self.height and self.board[ny][nx] == number:
+                count += 1
+                nx, ny = nx + dx, ny + dy
+            if count >= number:
+                return True
+        return False
 
     def calculate_score(self):
         for y in range(self.height):
