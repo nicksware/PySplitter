@@ -39,9 +39,14 @@ class Splitter:
     def play_game(self):
         for _ in range(self.rounds):
             number1, number2 = self.roll_dice()
+            # Strategie: Kies een willekeurige locatie voor de hoogste waarde
+            if number1 > number2:
+                number = number1
+            else:
+                number = number2
             x = random.randint(0, self.width - 1)
             y = random.randint(0, self.height - 1)
-            while not self.make_move(number1, x, y) or not self.make_move(number2, self.width - x - 1, y):
+            while not self.make_move(number, x, y) or not self.make_move(number, self.width - x - 1, y):
                 x = random.randint(0, self.width - 1)
                 y = random.randint(0, self.height - 1)
         self.calculate_score()
