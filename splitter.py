@@ -1,55 +1,76 @@
-import random
+import sys
 
-class Splitter:
-    def __init__(self, width, height, rounds):
-        self.width = width
-        self.height = height
-        self.rounds = rounds
-        self.board = [[0] * width for _ in range(height)]
-        self.score = 0
-        self.changed_cells = set()
+def parse_grid():
+    """Parses the initial game grid state from stdin."""
+    grid = []
+    for _ in range(height):
+        row = list(map(int, input().split()))
+        grid.append(row)
+    return grid
 
-    def roll_dice(self):
-        return random.randint(1, 6), random.randint(1, 6)
+def find_empty_near_special(grid, num):
+    """Finds an empty space near a special space (star or heart), prioritizing grouping with same numbers."""
+    best_score = -1
+    best_move = None
+    for y in range(height):
+        for x in range(width):
+            if grid[y][x] == 1 or grid[y][x] > 1: # Check for empty or special space
+                score = 0
+                # Check nearby spaces for same numbers or special spaces to increase score
+                for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < width and 0 <= ny < height:
+                        if grid[ny][nx] == num:
+                            score += 1
+                        elif grid[ny][nx] > 1: # Star or heart space
+                            score += 2
+                if score > best_score:
+                    best_score = score
+                    best_move = (x, y)
+    return best_move
 
-    def make_move(self, number, x, y):
-        if self.board[y][x] != 0:
-            return False
-        self.board[y][x] = number
-        self.changed_cells.add((x, y))
-        return True
+def update_grid(grid, num, x, y):
+    """Updates the grid state by placing the number and its mirror correctly."""
+    # Place the number
+    grid[y][x] = -1  # Mark this tile as filled
+    # Calculate and place the mirrored number
+    mirror_x = width - x - 1
+    grid[y][mirror_x] = -1  # Mark the mirrored tile as filled
 
-    def calculate_score(self, x, y, number):
-        directions = [(1, 0), (0, 1)]
-        score = 0
-        for dx, dy in directions:
-            count = 1
-            nx, ny = x + dx, y + dy
-            while 0 <= nx < self.width and 0 <= ny < self.height and self.board[ny][nx] == number:
-                count += 1
-                nx, ny = nx + dx, ny + dy
-            if count >= number:
-                score += number
-        return score
+def is_valid_placement(grid, x, y):
+    """Checks if the placement is valid (empty and not previously filled)."""
+    if grid[y][x] > 0:  # 1 for empty, 2 for star, 3 for heart
+        # Check mirrored position as well
+        mirror_x = width - x - 1
+        return grid[y][mirror_x] > 0
+    return False
 
-    def play_game(self):
-        for _ in range(self.rounds):
-            number1, number2 = self.roll_dice()
-            # Strategie: Kies een willekeurige locatie voor de hoogste waarde
-            number = max(number1, number2)
-            x = random.randint(0, self.width - 1)
-            y = random.randint(0, self.height - 1)
-            while not self.make_move(number, x, y) or not self.make_move(number, self.width - x - 1, y):
-                x = random.randint(0, self.width - 1)
-                y = random.randint(0, self.height - 1)
-        for x, y in self.changed_cells:
-            self.score += self.calculate_score(x, y, self.board[y][x])
-        print("Game over! Final score:", self.score)
+def find_valid_placement(grid, num):
+    """Finds a valid placement for the number considering current grid state."""
+    for y in range(height):
+        for x in range(int(width / 2)):  # Only need to iterate over half due to mirroring
+            if is_valid_placement(grid, x, y):
+                return x, y
+    return None  # No valid placement found
 
-# Example usage:
+def main():
+    global width, height, rounds
+    width, height, rounds = map(int, input().split())
+    grid = parse_grid()
+
+    try:
+        for _ in range(rounds):
+            num1, num2 = map(int, input().split())
+
+            move = find_valid_placement(grid, num1)
+            if move:
+                x, y = move
+                print(f"{num1} {x} {y}")
+                update_grid(grid, num1, x, y)
+            else:
+                print("# No valid move found, passing.")
+    except EOFError:
+        pass
+
 if __name__ == "__main__":
-    width = 8
-    height = 7
-    rounds = 22
-    game = Splitter(width, height, rounds)
-    game.play_game()
+    main()
