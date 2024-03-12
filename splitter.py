@@ -8,7 +8,7 @@ def parse_grid():
         grid.append(row)
     return grid
 
-def update_grid(grid, num, x, y):
+def update_grid(grid, x, y):
     """Updates the grid state by placing the number and its mirror correctly."""
     # Place the number
     grid[y][x] = -1  # Mark this tile as filled
@@ -153,7 +153,7 @@ def main():
             if move:
                 num, x, y = move
                 print(f"{num} {x} {y}")
-                update_grid(grid, num, x, y)
+                update_grid(grid, x, y)
             else:
                 print("# No valid move found, passing.")
     except EOFError:
