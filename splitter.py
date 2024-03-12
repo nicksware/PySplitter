@@ -25,26 +25,72 @@ def update_grid_for_evaluation(grid, num, x, y):
     new_grid[y][mirror_x] = num
     return new_grid
 
-def score_move(grid, num, x, y):
-    """Scores a move based on its strategic value."""
-    score = 0
-    # Apply the move hypothetically
-    temp_grid = update_grid_for_evaluation(grid, num, x, y)
+def game_progress(round):
+    """Returns the game progress as a fraction."""
+    return round / rounds
 
-    # Scoring for group formation potential
-    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Check orthogonal directions
+def adjust_score_for_progress(score, round, is_special):
+    """Adjusts score based on game progression and whether the move uses a special tile."""
+    progress = game_progress(round)
+    if is_special:
+        return score * (1 + progress)  # Increase the importance of special tiles as the game progresses
+    else:
+        return score
+
+def dfs_count(grid, x, y, num, visited):
+    """Depth-first search to count the number of adjacent tiles with the same value."""
+    if x < 0 or x >= width or y < 0 or y >= height:
+        return 0  # Out of bounds
+    if visited[y][x] or grid[y][x] != num:
+        return 0  # Already visited or not matching number
+    visited[y][x] = True  # Mark as visited
+    count = 1  # Count this tile
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Check all four directions
+        count += dfs_count(grid, x + dx, y + dy, num, visited)
+    return count
+
+def completes_group(grid, num, x, y):
+    """Checks if placing a number completes a group exactly."""
+    visited = [[False for _ in range(width)] for _ in range(height)]
+    count = dfs_count(grid, x, y, num, visited)
+    return count == num
+
+def dynamic_special_tile_score(grid, x, y, round, num):
+    """Adjusts the special tile score based on game progression and immediate benefit."""
+    progress = game_progress(round)
+    is_special = grid[y][x] in [2, 3] or grid[y][width - x - 1] in [2, 3]
+    base_score = 20 if is_special else 0
+    if completes_group(grid, num, x, y):
+        base_score *= 2  # Significantly increase the score for completing a group
+    elif progress > 0.5:
+        base_score *= 1.5  # Increase score in the later half of the game
+    return base_score
+
+def empty_neighbors(grid, x, y):
+    """Counts the empty neighbors around a given position."""
+    count = 0
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
         nx, ny = x + dx, y + dy
-        if 0 <= nx < width and 0 <= ny < height:
-            if temp_grid[ny][nx] == num:
-                score += 10  # Increase score for each adjacent matching number
-    
-    # Special tile considerations
-    if grid[y][x] == 2 or grid[y][width - x - 1] == 2:  # Star tile
-        score += 20
-    if grid[y][x] == 3 or grid[y][width - x - 1] == 3:  # Heart tile
-        score += 15
+        if 0 <= nx < width and 0 <= ny < height and grid[ny][nx] == 1:
+            count += 1
+    return count
 
-    # Future flexibility could be evaluated here as well (more complex and left as an exercise)
+def score_move(grid, num, x, y, round):
+    """Updates scoring considering dynamic strategies and dual consideration."""
+    score = 0
+    temp_grid = update_grid_for_evaluation(grid, num, x, y)
+    
+    # Basic adjacency and group formation
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < width and 0 <= ny < height and temp_grid[ny][nx] == num:
+            score += 5  # Score for adjacency
+
+    # Apply dynamic scoring for special tiles and group completion
+    score += dynamic_special_tile_score(grid, x, y, round, num)
+
+    # Reward moves that leave options open
+    score += empty_neighbors(temp_grid, x, y) * (1 if round < rounds / 2 else 1.5)
 
     return score
 
@@ -56,17 +102,16 @@ def is_valid_placement(grid, x, y):
         return grid[y][mirror_x] > 0
     return False
 
-def find_best_move(grid, num1, num2):
+def find_best_move(grid, num1, num2, current_round):
     """Finds the best move for the current dice roll by evaluating all valid placements."""
     best_score = -1
     best_move = None
     for y in range(height):
         for x in range(int(width / 2)):  # Consider half due to mirroring
             if is_valid_placement(grid, x, y):
-                # Evaluate move for num1
-                score1 = score_move(grid, num1, x, y)
-                # Evaluate move for num2, as if num2 was placed at x, y and mirrored
-                score2 = score_move(grid, num2, x, y)
+                # Evaluate moves for num1 and num2, considering the round for dynamic adjustments
+                score1 = score_move(grid, num1, x, y, current_round)
+                score2 = score_move(grid, num2, x, y, current_round)
                 
                 # Choose the move with the higher score
                 if score1 > best_score:
@@ -81,11 +126,13 @@ def main():
     global width, height, rounds
     width, height, rounds = map(int, input().split())
     grid = parse_grid()
+    current_round = 0
 
     try:
         for _ in range(rounds):
             num1, num2 = map(int, input().split())
-            move = find_best_move(grid, num1, num2)
+            current_round += 1
+            move = find_best_move(grid, num1, num2, current_round)
             if move:
                 num, x, y = move
                 print(f"{num} {x} {y}")
