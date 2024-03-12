@@ -55,15 +55,33 @@ def completes_group(grid, num, x, y):
     count = dfs_count(grid, x, y, num, visited)
     return count == num
 
+def board_state_analysis(grid):
+    total_tiles = width * height
+    filled_tiles = sum(row.count(-1) for row in grid)
+    board_fullness = filled_tiles / total_tiles
+
+    # Check for unused special tiles
+    special_tiles_unused = sum(row.count(2) + row.count(3) for row in grid)
+
+    return board_fullness, special_tiles_unused
+
 def dynamic_special_tile_score(grid, x, y, round, num):
-    """Adjusts the special tile score based on game progression and immediate benefit."""
     progress = game_progress(round)
+    board_fullness, special_tiles_unused = board_state_analysis(grid)
     is_special = grid[y][x] in [2, 3] or grid[y][width - x - 1] in [2, 3]
     base_score = 20 if is_special else 0
+
     if completes_group(grid, num, x, y):
-        base_score *= 2  # Significantly increase the score for completing a group
+        base_score *= 2  # Increase score for completing a group
+
+    # Increase priority of special tiles as the board gets fuller
+    if board_fullness > 0.75 and special_tiles_unused > 0:
+        base_score *= 2  # Double the score if the board is getting full and special tiles are unused
+
+    # Adjustments based on game progress
     elif progress > 0.5:
         base_score *= 1.5  # Increase score in the later half of the game
+
     return base_score
 
 def empty_neighbors(grid, x, y):
@@ -76,17 +94,16 @@ def empty_neighbors(grid, x, y):
     return count
 
 def score_move(grid, num, x, y, round):
-    """Updates scoring considering dynamic strategies and dual consideration."""
     score = 0
     temp_grid = update_grid_for_evaluation(grid, num, x, y)
-    
-    # Basic adjacency and group formation
+
+    # Basic scoring based on adjacency and group formation
     for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
         nx, ny = x + dx, y + dy
         if 0 <= nx < width and 0 <= ny < height and temp_grid[ny][nx] == num:
             score += 5  # Score for adjacency
 
-    # Apply dynamic scoring for special tiles and group completion
+    # Enhanced dynamic scoring considering board state
     score += dynamic_special_tile_score(grid, x, y, round, num)
 
     # Reward moves that leave options open
