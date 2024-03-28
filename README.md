@@ -1,7 +1,7 @@
 
 # PySplitter
 
-Play the splitter game - Python edition. 
+Play the [splitter](https://github.com/lucrasoft/Splitter/) game - Python edition. 
 Run with:
 
 ```sh
